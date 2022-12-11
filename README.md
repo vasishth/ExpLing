@@ -7,6 +7,7 @@ The directory structure is
       ├── ExperimentalLinguisticsVasishth.Rnw
       ├── ExperimentalLinguisticsVasishth.pdf
       ├── Nicenboim2018CogSci.Rda
+      ├── bibcleaned.bib
       ├── README.md
       ├── bf.rda
       ├── bfuninf.rda
@@ -18,7 +19,7 @@ The directory structure is
       └── mnull.Rda
 
 
-The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file.
+The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file. The .bib file has references used in the paper.
       
 The data are in the file Nicenboim2018CogSci.Rda.      
 
