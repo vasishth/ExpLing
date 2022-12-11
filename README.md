@@ -11,15 +11,9 @@ The directory structure is
       ├── bf.rda
       ├── bfuninf.rda
       ├── figure
-      │   ├── unnamed-chunk-10-1.pdf
       │   ├── unnamed-chunk-11-1.pdf
-      │   ├── unnamed-chunk-12-1.pdf
-      │   ├── unnamed-chunk-13-1.pdf
-      │   ├── unnamed-chunk-14-1.pdf
-      │   ├── unnamed-chunk-5-1.pdf
+      │   ├── unnamed-chunk-13-1.pd
       │   ├── unnamed-chunk-6-1.pdf
-      │   ├── unnamed-chunk-7-1.pdf
-      │   └── unnamed-chunk-8-1.pdf
       ├── mfull.Rda
       └── mnull.Rda
 
