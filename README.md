@@ -9,20 +9,18 @@ The directory structure is
       ├── Nicenboim2018CogSci.Rda
       ├── bibcleaned.bib
       ├── README.md
-      ├── bf.rda
-      ├── bfuninf.rda
       ├── figure
       │   ├── unnamed-chunk-11-1.pdf
       │   ├── unnamed-chunk-13-1.pd
       │   ├── unnamed-chunk-6-1.pdf
-      ├── mfull.Rda
-      └── mnull.Rda
 
+The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file. The .bib file has references used in the paper.  Compiling the Rnw file can be done within RStudio by pressing the compile pdf button. Once the Rnw file is compiled (it will take a while), a .tex file is created. You may need to run latex on the resulting .tex file: on the command line, type
 
-The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file. The .bib file has references used in the paper.
-      
-The data are in the file Nicenboim2018CogSci.Rda.      
+latex ExperimentalLinguisticsVasishth
+bibtex ExperimentalLinguisticsVasishth
+latex ExperimentalLinguisticsVasishth
+latex ExperimentalLinguisticsVasishth
 
-The rda files are precomputed data, created to save time.
+The data are in the file Nicenboim2018CogSci.Rda.
 
 The figures directory contains the figures in the paper.
