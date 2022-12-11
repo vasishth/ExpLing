@@ -1,0 +1,760 @@
+\documentclass[a4paper]{article}
+
+\usepackage[]{graphicx}
+
+\usepackage[]{color}
+
+
+\usepackage{alltt} % man for manuscript format, jou for journal format, doc for standard LaTeX document format
+\usepackage{natbib} 
+%\usepackage{apacite} 
+\usepackage[american]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{csquotes}
+\usepackage{setspace}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{amsmath,amssymb,amsfonts}
+
+\usepackage{gb4e}
+%\usepackage{url}   % this allows us to cite URLs in the text
+%\usepackage{graphicx}   % allows for graphic to float when doing jou or doc style
+%\usepackage{verbatim}   % allows us to use \begin{comment} environment
+%\usepackage{caption}
+%\usepackage{lscape}
+%\usepackage{pdflscape}
+
+%\usepackage{url,lineno}
+%\linenumbers
+
+%\usepackage{fancyvrb}
+
+%\usepackage{newfloat}
+%\DeclareFloatingEnvironment[
+%    fileext=los,
+%    listname=List of Schemes,
+%    name=Listing,
+%    placement=!htbp,
+%    within=section,
+%]{listing}
+
+\title{New directions in statistical analysis for experimental linguistics}
+
+\author{Shravan Vasishth}
+
+
+\begin{document}
+
+\maketitle
+
+\bibliographystyle{agsm}
+
+
+\begin{abstract}
+In recent decades, linguistics has taken an empirical turn--experimental methods
+have become a standard part of the toolkit for researchers in areas like syntax, semantics,
+and pragmatics. Because experimental science requires statistical tools, and because experimental data has historically been usually analyzed using frequentist methods, 
+linguists have adopted these standardly used methods. However, by adopting these standard methods, linguistics also
+imported all the problems that frequentist methods have engendered; the replication
+crisis is perhaps the most dramatic one of all. Most of these problems arise due
+to the way the null hypothesis significance testing procedure is set up: a
+straw-man null hypothesis is rejected that was never of any interest in the
+first place; binary accept/reject decisions are made based on the p-value,
+disregarding the uncertainty in the estimates; one is encouraged through
+conveniently available software to fit canned statistical models with fixed
+assumptions, even when those assumptions are extremely unreasonable; and there
+is no way to cumulatively build on previous findings when analyzing data.
+Meanwhile, there have been important  developments recently in statistical
+computing, particularly in Bayesian methodology. These new statistical tools, which focus on uncertainty
+quantification using Bayes' rule, are well worth understanding and adopting in linguistics.
+Bayesian data analysis has several important advantages over the frequentist
+paradigm: prior knowledge and/or competing prior beliefs can be formally
+incorporated in a data analysis; the focus shifts to quantifying uncertainty by
+concentrating on parameter estimation rather than making binary decisions; all
+sources of variance can be taken into account simultaneously in a model, leading
+to more conservative inferences; and statistical models can be customized to the
+research problem at hand. All these advantages lead to more robust inferences.
+This article explains in detail the problems with standard methods and
+discusses, with a concrete running example, the advantages of adopting an uncertainty-quantification based approach to statistical inference using modern Bayesian tools. Data and code accompanying this article are available from https://osf.io/kgxpn/.
+\end{abstract}
+
+``Null hypothesis significance testing has been psychology’s hammer that made cognition and behaviour look like a nail.'' \cite{BlokpoelvanRooij}.
+
+\section{Introduction}
+
+
+<<include=FALSE,echo=FALSE,message=FALSE>>=
+library(lme4)
+@
+
+In recent decades, linguistics has taken an empirical turn: it is now routine to run experiments to test theoretical questions in areas like syntax \citep{sprouse}, semantics \citep{hackl2012quantification}, and pragmatics \citep{chemla2009presuppositions}. Even those linguists who used to rely on intuition to develop their theories are now quite well-versed in conducting planned experiments using well-executed experiment designs and sophisticated equipment. 
+
+As far as data analysis goes, linguistics has historically looked to standard practice in psychology to develop the methodology of statistical inference. Unfortunately, the form of statistical inference that is the norm in psychology, and now in linguistics, has drifted far from its original intent \citep[e.g.,][]{belia2005researchers}. Even psychology textbooks (written by psychologists) propagate a fundamentally incorrect understanding of statistical inference \citep{cassidy2019failing}.
+
+As a consequence of such misunderstanding, the statistical inferences that are often reported in published papers end up being at best questionable. We see the misinterpretions of statistical inference playing out in psychology through the replication crisis, whereby an alarmingly high proportion of claimed effects could not be replicated \citep{open2015estimating,nosek2022replicability}. Similar problems occur in psycholinguistics \citep[e.g.,][]{VasishthMertzenJaegerGelman2018}.
+
+One major reason for these misinterpretations is that researchers (including the author of this article, when he was a graduate student) often receive only a cursory education in statistical inference, and dive into the nitty-gritty work of data analysis without really knowing what a p-value is or what it can and cannot tell us \citep{pvals}. Why, despite the focus on empirical methods in linguistics, is statistics education neglected? Through conversations with fellow linguists, it appears that statistics education has received second-class citizen status in linguistics largely because it is considered to be orthogonal to the scientific process itself. However, this is a misunderstanding: As far as experimental linguistics goes, scientific reasoning and statistical inference are tightly connected, and neglecting the latter is likely to lead to invalid scientific conclusions.
+
+In this chapter, I use a practical example from a psycholinguistic data set \citep{NicenboimEtAlCogSci2018} to briefly discuss some of the most serious problems with standard null hypothesis significance testing, and then I present an alternative approach to data analysis that uses Bayesian methods to shift the focus towards  uncertainty quantification. One consequence of using Bayesian methods---assuming that they are used as intended---is that statistical inferences will generally be more conservative. For related discussions, see \cite{VasishthGelman2021,VasishthARL2022}. One caveat here is that it is of course possible to misuse Bayesian methods as well \citep{tendeiro2022diagnosing}; however, one important advantage of Bayesian approaches is that one can directly focus on uncertainty quantification, as I explain below.  
+
+This chapter assumes that the reader has some familiarity with experiment design, in particular with repeated measures designs, and have at least a passing acquaintance with standard statistical methods, such as t-tests and the linear mixed model \citep{winter2019statistics}. If the reader is lacking this background, some material specifically written for (psycho)linguists that will help the reader to acquire the assumed background  \citep{baayen2008analyzing,baayen2008mixed,VasishthNicenboimStatMeth,VasishthGelman2021,VasishthARL2022,VasishthEtAlFreq2019}.
+
+Reproducible code and data related to this chapter are available from https://osf.io/kgxpn/.
+
+\section{A conventional frequentist data analysis using statistical significance (what could go wrong?)}
+
+As a case study, consider the self-paced reading study reported in \cite{NicenboimEtAlCogSci2018}. (The published paper did not use the frequentist approach for data analysis that I use here; I use the frequentist approach to illustrate the problems that null hypothesis significance testing leads to.)
+
+This experiment investigates a phenomenon called similarity-based interference \citep{lewisvasishth:cogsci05}; the essential claim being tested is that when a subject-verb dependency has to be built, the presence of nouns similar to the grammatical subject, but not in subject position, can make it harder to complete the correct dependency. The experiment design in \cite{NicenboimEtAlCogSci2018} involves German and consists of two conditions. There is a low-interference condition (\ref{intsentence}a), where only the subject noun, \textit{Der Wohlt\"ater}, `the philanthropist', has the same number marking as the auxiliary verb \textit{hatte}, `had', and a high interference condition  (\ref{intsentence}b), where there are three nouns with the same number marking. In the high-interference condition, it is harder to distinguish the grammatical subject from the other two (distractor) nouns, and as a consequence completing the subject-verb dependency takes more time.
+
+\begin{exe}
+\ex \label{intsentence}
+\begin{xlist}
+\item Low interference
+\gll Der Wohlt\"ater, der die Assistenten der Direktoren begr\"ußt hatte, saß sp\"ater {im Spendenausschuss}.\\
+The.sg.nom philanthropist, who.sg.nom the.pl.acc assistant(s) {(of) the.pl.gen} director(s) greeted had.sg, sat.sg later {in the donations committee}.\\
+\glt ``The philanthropist, who had greeted the assistants of the directors, sat later in the donations committee.''
+\item High interference
+\gll Der Wohlt\"ater, der den Assistenten des Direktors begr\"ußt hatte, saß sp\"ater {im Spendenausschuss}.\\
+The.sg.nom philanthropist, who.sg.nom the.sg.acc assistant {(of) the.sg.gen} director greeted had.sg, sat.sg later {in the donations committee}.\\
+\glt ``The philanthropist, who had greeted the assistant of the director, sat later in the donations committee.'' 
+\end{xlist}
+\end{exe}
+
+\cite{NicenboimEtAlCogSci2018} carried out a self-paced reading experiment with 184 German native-speaker participants, each of whom saw a total of 60 items in a standard Latin square design.
+
+A typical data analysis carried out in such a design would be to isolate the reading time for the critical region (the auxiliary verb \textit{hatte}, `had'),  aggregate the data by subjects, and then carry out a one-sample (equivalently, a paired) t-test. A repeated measures ANOVA (analysis of variance) would be equivalent to the t-test. One could also do a so-called by-items analysis, but this is omitted here for simplicity.
+
+In this example, I follow standard statistical practice for positive-only dependent measures like reading time by log-transforming reading time; in this particular example, a reciprocal transform would be more approptiate \citep{kliegl2010linear,box1964analysis}, but for my current purposes, this is not an important issue, so I will use the log transform. 
+
+<<echo=FALSE>>=
+load("Nicenboim2018CogSci.Rda")
+## rename to something convenient:
+dat<-Nicenboim2018CogSci
+dat<-subset(dat,word=="hatte,")
+dat$subject<-paste(dat$subj,dat$phase)
+## sum contrast coding, the suffixes to HI refer to the question type:
+dat$int<-ifelse(dat$condition%in%c("HI_EVO","HI_EVS","HI_MV"),1/2,-1/2)
+dat$cond<-ifelse(dat$condition%in%c("HI_EVO","HI_EVS","HI_MV"),"high","low")
+dat$logrt<-log(dat$rt)
+dat_agg<-aggregate(logrt~subject + cond, data= dat,mean)
+res<-t.test(logrt ~ cond,paired=TRUE,data=dat_agg)
+obs_tval<-round(res$statistic,2)
+pval<-round(res$p.value,2)
+degf<-as.numeric(res$parameter)
+est<-round(res$estimate,4)
+ci<-round(res$conf.int,3)
+se<-(ci[2]-ci[1])/4
+stddev<-round(se*sqrt(184),4)
+n<-round(power.t.test(d=est,sd=stddev,power=0.80,type="one.sample",
+             alternative="two.sided",strict=TRUE)$n)
+@
+
+Such a t-test yields a statistically significant effect of interference: The t-value is \Sexpr{obs_tval} (with degrees of freedom \Sexpr{degf}), the p-value is \Sexpr{pval}. The estimate of the effect (on the log ms scale) is \Sexpr{est} and the 95\% confidence interval is [\Sexpr{ci[1]},\Sexpr{ci[2]}].
+The conventional conclusion would be that we found evidence for similarity-based interference. This conclusion is actually over-enthusiastic, as explained below.
+
+<<echo=FALSE>>=
+m<-lmer(logrt~int + (1+int|subject) +  (1+int|item),dat)
+est_lmer<-summary(m)$coefficients[2,1]
+se_lmer<-summary(m)$coefficients[2,2]
+tval_lmer<-summary(m)$coefficients[2,3]
+@
+
+At this juncture, one might object that the t-test is not appropriate for these data. In fact, in recent years, t-tests and repeated measures ANOVA have increasingly been replaced by the linear mixed model \citep{pinheirobates,lme4new}. It is correct that the  linear mixed model is the better way to do the statistical analysis in the present case, because all sources of variability can simultaneously be taken into account \citep[cf.][]{clark1973lfe}. Doing such an analysis using the lme4 package in R yields an estimate of \Sexpr{round(est_lmer,3)}, with a 95\% confidence interval of 
+[\Sexpr{round(est_lmer-2*se_lmer,4)},\Sexpr{round(est_lmer+2*se_lmer,4)}], and a t-value of \Sexpr{round(tval_lmer,2)}.\footnote{When faced with such a null result, a common conclusion one sees in articles is to state that there is evidence \textit{against} the interference effect. This conclusion is also a complete misunderstanding of the hypothesis testing framework: first, absence of evidence is not necessarily evidence of absence, and second, as discussed below, the difference between a significant and non-significant result is itself not necessarily significant \citep{gelmanhill07}.}
+
+So, is the result significant or not significant? The t-test suggests the answer is yes, the linear mixed model says no. There are two important observations here that need to be understood in order to interpret these apparently divergent results.
+
+\subsection{What could go wrong in frequentist hypothesis tests?}
+
+\subsubsection{Statistical significance itself is not particularly informative}
+
+The first observation is that the difference between significant and not significant may itself not be significant \citep{gelmanhill07}, meaning that the two analyses above are not necessarily showing different ``results'' (where results refers to significance or non-significance of the effect). 
+
+To make this point concrete, we can do a short thought experiment. Suppose that we were to run the above experiment twice, with the same number of subjects each time (n=184) but different subjects in each run. Suppose that in the first run we obtain a t-value of 2.05 with an effect size of 0.02 log ms, with standard deviation 0.1323 (the t-value is computed using the formula: $(0.02-0)/(0.1323/\sqrt{184}) = 2.05)$. Then we run the experiment again, and this time the estimate happens to be 0.01 and the standard deviation happens to be 0.14 (this can happen because of random variability). Now, the t-value is 1.02; not significant. Is the difference between these two results significantly different? 
+
+We see many instances of papers in psycholinguistics  and related areas (including one by the author of the present chapter) where researchers conclude that the answer is yes, the two results show meaningful differences \citep{nieuwenhuis2011erroneous,levy2013expectation,vasishthlewisLanguage05}. But a two-sample t-test can answer that question formally. The difference in effect sizes is 0.02-0.01=0.01, the t-value from the two studies combined is computed using the formula:
+
+\begin{equation}
+observed-t = \frac{0.01-0}{\sqrt{0.1323^2/184 + 0.14^2/184}} = \Sexpr{round((0.01-0)/sqrt(0.1328^2/184 + 0.14^2/184),2)}
+\end{equation}
+
+The t-value \Sexpr{round((0.01-0)/sqrt(0.1328^2/184 + 0.14^2/184),2)} tells us that we don't have a significant difference between the two studies (of course, this does not mean that there is no difference either--we just don't know). And yet, even experienced scientists (e.g., editors-in-chief of major journals in psychology and psycholinguistics) will consider the second study a replication failure, and more generally will interpret the significant vs.\ non-significant result as pointing to different conclusions.
+
+The main point here is that obtaining a significant or non-significant result by itself is not necessarily going to allow us to make a discovery claim. Doing statistical analyses on experimental data gives the illusion of quantitative rigor; this is why some psycholinguists have started demanding that linguistics always rely on experimental data \citep{gibson2010weak,gibson2013need}. 
+But in fact, the knowledge gleaned from quantitative methods can be very tenuous, and even strong advocates of quantitative methods rarely appreciate this point. One major problem here is statistical power; this is discussed next.
+
+\subsubsection{Underpowered studies will be misleading; and studies are often (severely) underpowered}
+
+The second observation is that, far more important than a significant or non-significant result is the extent to which the experiment design might overestimate the true effect under repeated sampling \citep{gelmancarlin}. 
+To understand this point, one must understand the concept of statistical power. 
+
+Power is the probability of detecting an effect if it actually exists (has some particular magnitude). Null hypothesis significance testing works as intended when it is used in high power situations; it is likely to lead to misleading results in low power situations.  In the present case, even though this experiment was run with 184 subjects (which seems like a lot of subjects), the power of the design is relatively low. 
+
+To see this, imagine that we use the estimates from the above design to plan a \textit{new} experiment. How many participants would we need to achieve 80\% power (the power level recommended by the American Psychological Association)? Assuming that the effect size on the log ms scale is indeed \Sexpr{est}, and that the standard deviation (estimated from the data) is \Sexpr{stddev} log ms, a power calculation shows that the necessary sample size would be \Sexpr{n} participants.\footnote{Incidentally, we are not computing ``observed power'' here but rather prospective power. Many researchers incorrectly try to determine the power of an already-conducted experiment, referring to this as ``observed power''; but as \cite{hoenigheisey} show, observed power is just a transform of the p-value, and adds no new information about the current study. The only relevant use of power calculations is to plan a future experiment---prospective power.} 
+
+What are the consequences of running a study with low power? One important consequence is that a statistically significant effect is likely to be based on an overestimate or may even have the wrong sign; \cite{gelmancarlin} call this kind of misestimate Type M(agnitude)/Type S(ign) error. 
+
+Misestimation of the effect size under low power is one key reason why a statistically significant result such as the one we obtained above with the t-test is not especially informative. It is also unlikely to be replicable if we define replicability as repeatedly finding significant effects when re-running the experiment. In a replication attempt, even if we are lucky enough to detect the effect (through a significant result), the significant effect would again very likely be based on a misestimate.
+
+<<echo=FALSE>>=
+nsim<-10000
+nsamp<-30
+tval<-estimated_effect<-rep(NA,nsim)
+for(i in 1:nsim){
+  res<-t.test(rnorm(n=nsamp,mean=est,sd=stddev))
+  tval[i]<-res$statistic
+  estimated_effect[i]<-res$estimate
+}
+sim_res<-data.frame(tval,estimated_effect)
+
+pow_sim<-round(mean(abs(sim_res$tval)>2)*100)
+
+sig_est<-subset(sim_res,abs(tval)>2)$estimated_effect
+TypeM<-round(mean(sig_est/est))
+@
+
+One can demonstrate this through a simulation. Suppose that the true effect is 
+\Sexpr{est} log ms (so, the null hypothesis of no effect is false), and the standard deviation is \Sexpr{stddev} log ms. If we repeatedly generate data with a typical sample size of \Sexpr{nsamp} participants \citep{JaegerEngelmannVasishth2017} from the assumed normal distribution (a normal distribution is what the statistical test assumes), this yields a power of about \Sexpr{pow_sim}\%. We will find that on average, the significant effects will be based on an estimate (with the correct positive sign) that is about three times as large as the assumed true effect of \Sexpr{est} log ms. 
+
+It is common in linguistics to run studies with relatively low power  \citep{JaegerEngelmannVasishth2017,BuerkiEtAl2020,VasishthARL2022,VasishthMertzenJaegerGelman2018,JaegerMertzenVanDykeVasishth2019}. This is not due to any malicious intent, but due to resource and time limitations that researchers are often faced with. 
+
+Low power is not a problem that is easy to solve, but what we can change is to move away from the focus on significant/non-significant results (which, as shown above, will be uninformative). But if we don't focus on significance, what \textit{should} we focus on? I discuss this next.
+
+\subsection{A proposal from psychology to use frequentist confidence intervals instead of p-values, and the problem with this proposal}
+
+One important question we should consider given the above set of analyses (using the t-test and then the linear mixed model) is the following: We know what is different between the two analyses; but what is common to both the analyses? What is common to the two statistical tests is that the 95\% confidence intervals are both showing similar values: the paired t-test shows [\Sexpr{ci[1]},\Sexpr{ci[2]}], the linear mixed model [\Sexpr{round(est_lmer-2*se_lmer,3)},\Sexpr{round(est_lmer+2*se_lmer,3)}]. The linear mixed model estimate is wider because it includes more variance components than the t-test (which artifically reduces sources of variance through aggregation; see \cite{SchadEtAlAggregation2022}). Incidentally, the reader might again be tempted to conclude that the confidence intervals are showing different things, but this is the same mistake as treating significant vs.\ non-significant results as always being meaningful (they can be meaningful, but only when power is high).
+
+Many researchers \citep[e.g.,][]{meehl97,cumming2014new,mcshane2019abandon} have suggested that one should move away from statistical significance and focus instead on estimating and reporting confidence intervals. More generally, these researchers have argued that one should focus on quantifying one's uncertainty of the effect size. Usually, the frequentist confidence interval is used as a way to quantify this uncertainty. 
+
+Under this view, one could just report the confidence interval (here, I use the estimate from the linear mixed effects model): [\Sexpr{round(est_lmer-2*se_lmer,3)},\Sexpr{round(est_lmer+2*se_lmer,3)}] log ms. Instead of saying that the effect was significant or not significant, we can just say: the observed effect is \Sexpr{round(est_lmer,3)} log ms, with 95\% CI [\Sexpr{round(est_lmer-2*se_lmer,4)},  \Sexpr{round(est_lmer+2*se_lmer,4)}]; this is consistent with the pattern predicted by the theory being investigated.
+
+There are many advantages to such an approach: for one thing, once enough data accumulates, one can carry out a meta-analysis \citep{BuerkiEtAl2020,Buerki2022,JaegerEngelmannVasishth2017,NicenboimPreactivation2019}, which allows us to quantitatively assert (modulo publication bias) what we have learned from existing studies. Another advantage is that other researchers can use the published results to plan a properly powered study.
+
+One technical problem with the confidence interval is that it doesn't quantify uncertainty about the effect size, but has a rather convoluted meaning which is practically useless: if one were (counterfactually) 
+to run the experiment again and again, and compute 95\% confidence intervals \textit{each time}, 95\% of those repeatedly computed, hypothetical intervals would contain the true mean. This is practically useless because we have only one confidence interval to work with and it either contains the true effect or it doesn't; but we just don't know which of these two possibilities is true!
+
+It is mathematically incorrect to treat the frequentist confidence interval as specifying the range over which we can be 95\% certain that the true effect lies; the reason is that the effect is an unknown point value and therefore has no probability density function associated with it. Thus, if the effect is represented as the parameter $\beta$ (in a linear mixed model, this would be a slope in the fixed effects part of the model), we cannot work out the values ``lower'' and ``upper'' such that the probability that $\beta$ lies within these intervals is 0.95 
+($Prob(lower < \beta < upper) = 0.95$). To compute such a probability, we would have to assign a probability density function to $\beta$; for example $\beta$ would  need to have a distribution like $Normal(\mu,\sigma)$. As mentioned above, in the frequentist paradigm, the effect is just an unknown point value ``out there in nature''; it simply cannot have a probability distribution. It seems that this point has escaped even some psychologists \citep[e.g.,][]{meehl97} who argue against p-values as a way to carry out inference \citep[also see][]{hoekstra2014robust}.
+
+<<echo=FALSE>>=
+mu <- 500
+sigma <- 100
+n <- 1000
+nsim <- 1000
+lower <- rep(NA, nsim)
+upper <- rep(NA, nsim)
+for (i in 1:nsim) {
+  y <- rnorm(n, mean = mu, sd = sigma)
+  lower[i] <- mean(y) - 2 * sd(y) / sqrt(n)
+  upper[i] <- mean(y) + 2 * sd(y) / sqrt(n)
+}
+
+## check how many CIs contain mu:
+CIs <- ifelse(lower < mu & upper > mu, 1, 0)
+## approx. 95% of the CIs contain true mean:
+#round(mean(CIs), 2)
+@
+
+Figure \ref{fig:ciplot} visualizes the coverage properties of the confidence interval in 100 simulations ; by coverage we mean here the proportion of cases where the true $\mu$ is contained in the CI. The data are repeatedly generated from a normal distribution with mean 500 and standard deviation 100. Each confidence interval either contains the true mean 500 or it doesn't; the 95\% refers to the probability that the 100 confidence intervals contain the true mean.
+
+\begin{figure}[!htbp]
+\centering
+<<echo=FALSE,fig.height=5>>=
+## define function for SE
+se <- function(x)
+      {
+        y <- x[!is.na(x)] # remove the missing values, if any
+        sqrt(var(as.vector(y))/length(y))
+}
+## define function for CI:
+ci <- function (scores){
+m <- mean(scores,na.rm=TRUE)
+stderr <- se(scores)
+len <- length(scores)
+upper <- m + 2 * stderr 
+lower <- m - 2 * stderr 
+return(data.frame(lower=lower,upper=upper))
+}
+
+nsim<-100
+## sample size:
+n<-1000
+lower <- rep(NA,nsim)
+upper <- rep(NA,nsim)
+
+store <- rep(NA,nsim)
+
+for(i in 1:nsim){ 
+  y <- rnorm(n,mean=mu,sd=sigma)
+  lower[i] <- ci(y)$lower
+  upper[i] <- ci(y)$upper
+  if(lower[i]<mu & upper[i]>mu){
+    store[i] <- TRUE} else {
+      store[i] <- FALSE}
+}
+
+## need this for the plot below:
+cis <- cbind(lower,upper)
+
+main.title<-"95% CIs in 100 repeated samples"
+
+line.width<-ifelse(store==FALSE,2,1)
+cis<-cbind(cis,line.width)
+y<-seq(450,550,by=1)
+x<-1:length(y)
+plot(x,y,type="n",xlab="i-th repeated sample",
+     ylab="y",main=main.title)
+abline(500,0,lwd=2)
+x0<-x
+x1<-x
+arrows(x0,y0=cis[,1],
+       x1,y1=cis[,2],length=0,lwd=cis[,3])
+@
+\caption{Illustration of the meaning of a  95 percent confidence interval (CI). The thicker bars represent the CIs which do not contain the true mean.}\label{fig:ciplot}
+\end{figure}
+
+So is there some way to quantity uncertainty about the effect? It turns out that this is possible if we switch to a Bayesian way of thinking. I explain this point next.
+
+Until recently, Bayesian methods were very inaccessible to the non-statistician; one reason for this was that sufficiently flexible software did not exist, and complex models were difficult to fit. This situation has changed completely over the last 10 years, and now software like Stan \citep{carpenter2017stan} and JAGS \citep{plummer2011jags} have made it possible to fit relatively complex models quite easily. Moreover, several accessible textbooks, designed for the experimentalist who is not a statistician, have become available \citep{kruschke2014doing,mcelreath2016statistical,NicenboimEtAlBayes2019}. Because of these developments, it is now relatively easy to switch to a Bayesian methodology.
+
+\section{An alternative approach: Uncertainty quantification through Bayesian estimation}
+
+In the frequentist approach, the difference in means between two conditions is assumed to be an unknown point value. In our running example, the difference in means between the high and low interference conditions, call it $\delta$, is estimated by computing the difference in sample means between the two conditions; this is the maximum likelihood estimate. After that, the statistical test (the t-test) is carried out by dividing $d$, the estimate of $\delta$, by the estimated standard error. The 95\% confidence interval is then $d \pm t_{crit}\times SE$, where $t_{crit}$ is the critical t-value (which is approximately 2 for sample sizes larger than 20). The standard error only tells us how variable the estimate of the difference in sample means would be under (hypothetical) repeated sampling. The standard error cannot tell us anything about the uncertainty of the effect itself, as the effect $\delta$ is a point value by assumption; it has no distribution and therefore no uncertainty associated with it. 
+
+By contrast, the Bayesian approach assumes that the true difference in means, $\delta$, has a probability density function associated with it. This is called a prior distribution and represents our prior belief or prior knowledge about this difference. For example, we could define a prior distribution to $\delta$ as follows:
+
+\begin{equation}
+\delta \sim Normal(\mu,\sigma)
+\end{equation}
+
+What this means is that is assumed a priori to have a 95\% probability of lying between $\mu - 1.96 \times \sigma$ and $\mu + 1.96 \times \sigma$. 
+
+Defining such a prior distribution is quite a radical shift from the frequentist approach because, for the first time, we can talk about our prior uncertainty of the effect of interest. A natural question that arises at this point is: how can one come up with a prior distribution on the effect of interest even before running an experiment? Coming up with priors requires a way of thinking that physicists call a Fermi problem \citep{von1988fermi}; it is usually possible to work out reasonable priors for a particular research problem. Formal methods for deriving priors is a well-developed field \citep{ohagan2006uncertain,OakleyOHagan,morris2014web}. Actually, linguists are already familiar with prior elicitation: any linguist who has used intuition-based judgements to decide on the grammaticality of a sentence is basically deriving a prior belief about a sentence.  For examples from psycholinguistics of how prios can be systematically worked out, see chapter 6 of \cite{NicenboimEtAlBayes2019}.
+
+Once we analyze the data in the Bayesian framework, what we obtain is the updated distribution of $\delta$; this is called the posterior distribution of $\delta$. The basic approach is as follows. Suppose that the data are represented by the vector $y$; then the posterior distribution is the distribution of $\delta$ given $y$: $p(\delta | y)$.  The posterior distribution is computed using Bayes' rule, which states that the posterior distribution is proportional to the product of the prior distribution and the likelihood. 
+
+To make this concrete, if the prior on $\delta$ is $p(\delta)=Normal(\mu,\sigma)$ and the data are assumed to be generated from some likelihood function that takes $\delta$ as a parameter (call this likelihood $f(y|\delta)$), then, following Bayes' rule, the posterior distribution is proportional to the product of the likelihood and the prior:
+
+\begin{equation}
+p(\delta | y ) \propto  f(y|\delta)  f(\delta)
+\end{equation}
+
+If there is more than one parameter in the model, then a prior is defined for each parameter, and the posterior is then the joint distribution of the parameters given the data. For example, if the likelihood is the normal distribution, the parameters are the mean $\mu$ and the standard deviation $\sigma$, and the posterior distributions of these parameters are derived by computing:
+
+\begin{equation}
+p(\mu,\sigma | y ) \propto  Normal(y|\mu,\sigma)  f(\mu) f(\sigma)
+\end{equation}
+
+Here, $f(\mu)$ and $f(\sigma)$ are prior distributions defined on these parameters.
+
+In our one-parameter example above, the mean of the posterior distribution $p(\delta | y ) $ is a compromise between the frequentist maximum likelihood estimate and the mean of the prior distribution. This is a very important difference from the frequentist approach and allows us to build on prior knowledge; for a practical example of an analysis building on prior knowledge, see \cite{VasishthEngelmann2020}.
+
+Another important consequence of this fact (that the posterior mean is a compromise between the prior mean and the MLE) is that priors serve to regularize the posterior: when the data are sparse and a parameter cannot be estimated accurately, the posterior mean will be close to the prior mean. This regularization function of priors has the effect that the convergence warnings that one often sees in the lmer function in the lme4 package will not occur (assuming that a regularizing prior is defined). For more discussion, see chapter 5 of \cite{NicenboimEtAlBayes2019}. 
+
+Usually, in complex linear mixed models, this posterior distribution is computed using Markov Chain Monte Carlo  (MCMC) sampling. To carry out this computation, one uses software such as Stan \citep{carpenter2017stan} or its front-end brms \citep{brms}, JAGS \citep{plummer2011jags}, or the like.
+
+
+In Bayesian analysis, a radical change from the frequentist approach is that the Bayesian approach allows us to directly talk about the uncertainty of the effect of interest ($\delta$) once we have seen the data: the posterior distribution gives us this information. In other words, we can now say that we are 95\% certain (given the statistical model and the data) that the effect lies between a lower and upper bound.
+
+
+
+
+
+
+<<echo=FALSE,message=FALSE,include=FALSE>>=
+library(brms)
+@
+
+<<echo=FALSE>>=
+ priors1 <- c(
+    set_prior("normal(6, 0.6)", class = "Intercept"),
+    set_prior("normal(0, 0.1)",
+              class = "b",
+              coef = "int"),
+    set_prior("normal(0, 0.1)", class = "sd"),
+    set_prior("normal(0, 0.5)", class = "sigma"),
+      prior(lkj(2), class = cor, group = subject)
+    )
+ 
+ priorsnull <- c(
+   set_prior("normal(6, 0.6)", class = "Intercept"),
+   set_prior("normal(0, 0.1)", class = "sd"),
+   set_prior("normal(0, 0.5)", class = "sigma"),
+      prior(lkj(2), class = cor, group = subject)
+ )
+ 
+ m_full <- brm(rt ~ 1 +  int +
+                 (1 + int| subject) +
+                 (1 + int| item),
+               data = dat,
+               family = lognormal(),
+               prior = priors1,
+               warmup = 2000,
+               iter = 30000,
+               cores = 4,
+               save_pars = save_pars(all = TRUE)
+ )
+
+ m_null <- brm(rt ~ 1 +
+                 (1  + int | subject) +
+                 (1  +int | item),
+               data = dat,
+               family = lognormal(),
+               prior = priorsnull,
+               warmup = 2000,
+               iter = 30000,
+               cores = 4,
+               save_pars = save_pars(all = TRUE)
+ )
+ 
+ 
+bf10<-bayes_factor(m_full,m_null)$bf
+bayes_factor(m_full,m_null)
+
+save(m_full,file="mfull.Rda")
+save(m_null,file="mnull.Rda")
+save(bf10,file="bf.rda")
+@
+
+
+
+
+<<echo=FALSE>>=
+#load(file="mfull.Rda")
+#load(file="bf.rda")
+
+alpha<-as_draws_df(m_full)$Intercept
+beta<-as_draws_df(m_full)$b_int
+int_eff<-exp(alpha + beta/2)-exp(alpha - beta/2) 
+lower <- round(quantile(int_eff,prob=0.025),2)
+upper <- round(quantile(int_eff,prob=0.975),2)
+@
+
+\subsection{Bayesian estimation: A concrete example}
+
+To make this approach concrete, consider the Bayesian equivalent of the frequentist linear mixed model.
+
+As a baseline, first consider the frequentist linear mixed model. The reader may be familiar with the following lme4 syntax. Here, logrt is a vector containing log-transformed reading times, int is the two-level factor, coded as $\pm 0.5$ \citep{SchadEtAlcontrasts}.
+
+<<>>=
+m<-lmer(logrt~int + (1+int|subject) +  (1+int|item),dat)
+summary(m)
+@
+
+The model implied here is:
+
+\begin{equation}
+y \sim LogNormal(\alpha + u_1 + w_1 + (\beta+u_2 + w_2)\times int, \sigma)
+\end{equation}
+
+where $y$ is the reading time in milliseconds, $u_1, u_2$ and $w_1, w_2$  are, respectively, subject-level and item-level adjustments to the fixed effect intercept $\alpha$ and slope $\beta$, with both the $u$ and $w$ adjustments coming from  bivariate Normal distributions. For example, $u_1$ is assumed to have a Normal distribution with mean 0 and standard deviation $\sigma_{u1}$, $u_2$  a Normal distribution with mean 0 and standard deviation $\sigma_{u2}$, and the correlation between $u_1$ and $u_2$ is $\rho_u$. The bivariate normal distribution is written like this:
+
+\begin{equation}
+{\begin{pmatrix} 
+u_1 \\
+u_2
+\end{pmatrix}}
+ \sim 
+ Normal\left(
+{\begin{pmatrix} 
+0 \\
+0
+\end{pmatrix}}
+,
+{\begin{pmatrix} 
+\sigma_{u_1}^2 & \rho_u \sigma_{u_1} \sigma_{u_2} \\ 
+\rho_u \sigma_{u_1} \sigma_{u_2} & \sigma_{u_2}^2
+\end{pmatrix}}
+\right)
+\end{equation}
+
+Similarly, the by-item adjustments to the intercept and slope, $w_1$ and $w_2$,  also have a bivariate Normal distribution defined for them:
+
+\begin{equation}
+{\begin{pmatrix} 
+w_1 \\
+w_2
+\end{pmatrix}}
+ \sim 
+ Normal\left(
+{\begin{pmatrix} 
+0 \\
+0
+\end{pmatrix}}
+,
+{\begin{pmatrix} 
+\sigma_{w_1}^2 & \rho_w \sigma_{w_1} \sigma_{w_2} \\ 
+\rho_w \sigma_{w_1} \sigma_{w_2} & \sigma_{w_2}^2
+\end{pmatrix}}
+\right)
+\end{equation}
+
+This implies that the frequentist model has the following parameters: the fixed effects $\alpha$, $\beta$, and the variance components $\sigma_{u_1}, \sigma_{u_2},\sigma_{w_1}, \sigma_{w_2}, \sigma, \rho_u$, and $\rho_w$.
+
+In the Bayesian version of this model, we will need to define prior distributions for each of these parameters. The prior distributions for all parameters except the correlations are on the log scale:
+
+ \begin{equation}
+ \begin{aligned}
+   \alpha & \sim \mathit{Normal}(6,0.6 \\
+   \beta  & \sim \mathit{Normal}(0,0.1) \\
+   \sigma  &\sim \mathit{Normal}_+(0,0.5)\\
+   \sigma_{u_{1,2}}  &\sim \mathit{Normal}_+(0,0.1)\\
+   \sigma_{w_{1,2}}  &\sim \mathit{Normal}_+(0,0.1)\\
+   \rho_u &\sim LKJ(2)\\
+   \rho_w &\sim LKJ(2)
+ \end{aligned}
+ \end{equation}
+
+
+
+Why these priors and not some others? The motivation for these priors is discussed in detail in \cite{SchadEtAlWorkflow}, but for our purposes here, it is enough to state that these can be shown to be reasonable priors for this particular research question.  
+
+
+The priors for the correlation parameters need some discussion.  For these correlations, the so-called LKJ prior is available in the Stan programming language. When the LKJ distribution gets the parameter $2$, this specifies a prior that is widely spread out between $-1$ and $+1$ and has mean $0$; see Figure \ref{fig:lkjvisualization} for a visualization. A great advantage of this prior on the correlation is that the mean of the posterior distribution of correlation cannot have extreme values like $+1$ or $-1$. Such extreme values are often seen in frequentist linear mixed models, and represent an estimation failure. The LKJ prior prevents such extreme correlations from occurring because of the shape of the LKJ(2) distribution: these extreme values are heavily downweighted. This is what is meant by regularization in Bayesian methods: a priori unlikely values are downweighted by the prior.
+
+\begin{figure}[!htbp]
+\centering
+<<echo=FALSE,message=FALSE,fig.height=3>>=
+library(ggplot2)
+library(tidyverse)
+dlkjcorr <- function(x, eta = 1, log = FALSE) {
+  ll <- det(x)^(eta - 1)
+  if (log == FALSE) ll <- exp(ll)
+  return(ll)
+}
+
+
+# Simplified for a 2 x 2 matrix
+dlkjcorr2 <- function(rho, eta = 1) {
+  map_dbl(rho, ~ matrix(c(1, .x, .x, 1), ncol = 2) %>%
+    dlkjcorr(., eta))
+}
+
+ggplot(tibble(rho = c(-.99, .99)), aes(rho)) +
+  stat_function(fun = dlkjcorr2, geom = "line", args = list(eta = 2)) +
+  ylab("density") +
+  ggtitle("eta = 2") + theme_bw()
+
+@
+\caption{Visualization of the LKJ prior with parameter 2. This is an example of a regularizing prior: extreme values of the correlation value like $\pm 2$ are rendered impossible through this prior.}\label{fig:lkjvisualization}
+\end{figure}
+
+
+
+Leaving out the technical details of how the computation is done \citep[see][]{NicenboimEtAlBayes2019}, the estimates of the parameters from the Bayesian linear model are shown in Table \ref{table:results}, with the frequentist estimates shown alongside:
+
+<<echo=FALSE>>=
+## function for extracting; source: Nicenboim et al 2022 book: 
+print_warning <- function(wrn) {
+cat(paste0(map_chr(strwrap(paste("Warning:", wrn), 70, simplify = FALSE), ~ paste0(.x, collapse ="\n")),"\n\n"))
+}
+short_summary <- function (x, digits = 2, ...) 
+{
+  x<- summary(x)
+  cat("...\n")
+    # cat(" Family: ")
+    # cat(summarise_families(x$formula), "\n")
+    # cat("  Links: ")
+    # cat(summarise_links(x$formula, wsp = 9), "\n")
+    # cat("Formula: ")
+    # print(x$formula, wsp = 9)
+    # cat(paste0("   Data: ", x$data_name, " (Number of observations: ", 
+        # x$nobs, ") \n"))
+    if (!isTRUE(nzchar(x$sampler))) {
+        cat("\nThe model does not contain posterior samples.\n")
+    }
+    else {
+        final_samples <- ceiling((x$iter - x$warmup)/x$thin * 
+            x$chains)
+        # cat(paste0("Samples: ", x$chains, " chains, each with iter = ", 
+        #     x$iter, "; warmup = ", x$warmup, "; thin = ", x$thin, 
+        #     ";\n", "         total post-warmup samples = ", final_samples, 
+        #     "\n\n"))
+        if (nrow(x$prior)) {
+            cat("Priors: \n")
+            print(x$prior, show_df = FALSE)
+            cat("\n")
+        }
+        if (length(x$splines)) {
+            cat("Smooth Terms: \n")
+            brms:::print_format(x$splines, digits)
+            cat("\n")
+        }
+        if (length(x$gp)) {
+            cat("Gaussian Process Terms: \n")
+            brms:::print_format(x$gp, digits)
+            cat("\n")
+        }
+        if (nrow(x$cor_pars)) {
+            cat("Correlation Structures:\n")
+            brms:::print_format(x$cor_pars, digits)
+            cat("\n")
+        }
+        if (length(x$random)) {
+            cat("Group-Level Effects: \n")
+            for (i in seq_along(x$random)) {
+                g <- names(x$random)[i]
+                cat(paste0("~", g, " (Number of levels: ", x$ngrps[[g]], 
+                  ") \n"))
+                brms:::print_format(x$random[[g]], digits)
+                cat("\n")
+            }
+        }
+        if (nrow(x$fixed)) {
+            cat("Population-Level Effects: \n")
+            brms:::print_format(x$fixed, digits)
+            cat("\n")
+        }
+        if (length(x$mo)) {
+            cat("Simplex Parameters: \n")
+            brms:::print_format(x$mo, digits)
+            cat("\n")
+        }
+        if (nrow(x$spec_pars)) {
+            cat("Family Specific Parameters: \n")
+            brms:::print_format(x$spec_pars, digits)
+            cat("\n")
+        }
+        if (length(x$rescor_pars)) {
+            cat("Residual Correlations: \n")
+            brms:::print_format(x$rescor, digits)
+            cat("\n")
+        }
+        # cat(paste0("Samples were drawn using ", x$sampler, ". "))
+        if (x$algorithm == "sampling") {
+            #cat(paste0("For each parameter, Bulk_ESS\n", "and Tail_ESS are effective sample size measures, ", 
+             #   "and Rhat is the potential\n", "scale reduction factor on split chains ", 
+              #  "(at convergence, Rhat = 1)."))
+        }
+        cat("...\n")
+    }
+    invisible(x)
+}
+@
+
+
+\begin{table}[!htbp]
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+Parameter & Frequentist mean & CI & Bayesian mean & CrI \\
+\hline
+$\alpha$ & 6.35 & [\Sexpr{round(6.350769 - 2*0.027532,2)}, \Sexpr{round(6.350769 + 2*0.027532,2)}] &  6.35 & [6.30, 6.40]  \\
+$\beta$ &  0.012 & [\Sexpr{round(0.0096 - 2*0.01064,2)}, \Sexpr{round(0.0096 + 2*0.01064,2)}] & 0.02 & [-0.00, 0.04] \\ 
+$\sigma_{u1}$ & 0.37  & - & 0.36 &  [0.32, 0.40] \\
+$\sigma_{u2}$ & 0.05  & - &  0.04 &   [0.00, 0.08]\\
+$\rho_u$      & -0.04    & - & -0.04 &  [-0.61, 0.54]\\
+$\sigma_{w1}$ & 0.04  & -  &  0.04 &    [0.03, 0.05]\\
+$\sigma_{w2}$ & 0.03  & -  &  0.03 &   [0.00,  0.06]\\
+$\rho_w$      & -0.65    &  - &   -0.42 & [-0.97,  0.57]\\
+$\sigma$      & 0.47  & - & 0.47   &  [0.47,  0.48] \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Shown are the frequentist and Bayesian estimates from linear mixed models fit in the frequentist and Bayesian linear mixed models. CrI refers to the Bayesian credible interval, and represents the range over which we can be 95\% certain that the true value of the parameter lies, given the model and data.}\label{table:results}
+\end{table}%
+
+Some important similarities and differences between the frequentist vs.\ Bayesian estimates:
+
+\begin{enumerate}
+\item The means of most of the parameters are very similar in both.
+\item The mean of correlation parameter for items, $\rho_w$, is smaller in the Bayesian model; this is an example of the posterior mean being a compromise between the prior mean (0) and the MLE. The  posterior mean of  $\rho_w$ is being regularized towards 0, because there is not enough data to estimate this parameter accurately. In other words, the frequentist estimate will be most likely an overestimate (Type M error).
+\item The Bayesian model provides uncertainty intervals for each parameter; but the lme4 function does not (and cannot even in principle provide such uncertainty intervals, as the parameters are point values and have no distribution). The frequentist model allows us to work out the confidence intervals for the fixed effects, but these intervals are only telling us how variable the sample mean would be under hypothetical repeated sampling; they do not tell us the uncertainty about the true value of the parameters. 
+\end{enumerate}
+
+On the log scale, the estimate of the effect is \Sexpr{round(mean(beta),3)}, with 95\% credible interval [\Sexpr{round(quantile(beta,prob=0.025),3)}, \Sexpr{round(quantile(beta,prob=0.975),3)}] log ms. This estimate is not very different from the frequentist one computed using the lme4 package; but the meaning of the credible interval is quite different from that of the confidence interval.
+
+The Bayesian model also allows us to back-transform the posterior distributions of the fixed effects parameters to the millisecond scale \citep[see][]{NicenboimEtAlBayes2019}; this is easier to interpret because a computational model of interference effects makes predictions on the millisecond scale \citep{VasishthMethodsX2019,VasishthEtAlTiCS2019}, and because meta-analysis estimates of the interference effect are on the millisecond scale \citep{JaegerEngelmannVasishth2017}.
+Figure \ref{fig:posterior} shows this transformed effect estimate from the Bayesian model graphically.
+
+\begin{figure}[!htbp]
+\centering
+<<echo=FALSE,fig.height=5,message=FALSE>>=
+ggplot(data.frame(int_eff), 
+       aes(x=int_eff)) + 
+  geom_histogram(aes(y=..density..))+
+  theme_bw()+xlab("Interference effect (ms)")+
+  ggtitle("Posterior distribution of the interference effect (in ms)")
+@
+\caption{The estimate of the interference effect on the millisecond scale, based on a Bayesian linear mixed model. }\label{fig:posterior}
+\end{figure}
+
+What is interesting about this estimate is that we can now conclude that, given the model and data, the estimate of the interference effect is, with 95\% certainty, between $\Sexpr{lower}$ and $\Sexpr{upper}$ ms, and the posterior distribution of $\delta$ has mean  \Sexpr{round(mean(int_eff),2)} ms.  The uncertainty interval is called a credible interval. The meta-analysis estimate of this effect \citep{JaegerEngelmannVasishth2017} is 13 ms, 95\% credible interval [2,28]: the observed credible interval in our example data is consistent with the meta-analysis estimate.
+
+The conclusion that the observed posterior distribution of the effect of interest is consistent with predictions is different from claiming that we found \textit{evidence} for the interference effect. Arguing that we have evidence for an effect requires a model comparison using a likelihood ratio test \citep{Royall}; I discuss evidence in Bayesian methods below.
+
+A common reaction at this point is to ask: but how can we know that the effect is ``reliable'' or ``real''? As I tried to explain in the first part of this chapter, statistical significance can only answer this question if statistical power is high. In the Bayesian framework, it is in principle possible to carry out a null hypothesis test to attempt to answer this question; this Bayesian test is called the Bayes factor. The Bayes factor is the analog of the frequentist null hypothesis significance test. For authoritative discussions of the Bayes factor, see \cite{lee2014bayesian,wagenmakers2018bayesian1,wagenmakers2018bayesian2,haaf2019retire}.
+
+The Bayes factor is a ratio that represents the weight of evidence for the effect of interest compared to some null model (such as a model assuming that the effect is 0). For example, a Bayes factor of 3 means that a model including a parameter representing the effect is three times more likely than a model assuming no effect at all. Some textbooks and articles \citep[e.g.,][]{lee2014bayesian} provide a scale for interpreting Bayes factors, but such scales are arbitrary.
+
+The Bayes factor comes at a price \citep{SchadEtAlBF}, the principal one being that it can be very sensitive to the prior specified for the parameter representing the effect \citep{kass1995bayes}. As a consequence, it becomes necessary to report a so-called sensitivity analysis: the Bayes factor is computed under a range of prior specifications for the parameter of interest in the model (in the linear mixed model, this would be the $\beta$ parameter). Thus, unlike the p-value, a single Bayes factor is almost never informative. 
+
+Moreover, the  Bayes factor also suffers from the same power problem that we saw with the frequentist p-value; when power is low (e.g., with smaller sample sizes), the Bayes factor can deliver overly strong evidence for an effect \citep{vasishth2021sample}. Further, the Bayes factor can also lead to inconclusive results; for example, a Bayes factor near 1 would be inconclusive. In our running example, the Bayes factor with a relatively constrained prior of Normal(0,0.1) (on the log scale) for the slope parameter $\beta$ (this represents the interference effect), the Bayes factor is \Sexpr{round(bf10,2)} in favor of the effect, which is inconclusive.  The prior Normal(0,0.1) is relatively constrained because it implies that the effect can range a priori from $-115$ to $+115$ on the ms scale.
+
+<<uninf,echo=FALSE>>=
+ priors1 <- c(
+    set_prior("normal(6, 0.6)", class = "Intercept"),
+    set_prior("normal(0, 1)",
+              class = "b",
+              coef = "int"),
+    set_prior("normal(0, 0.1)", class = "sd"),
+    set_prior("normal(0, 0.5)", class = "sigma"),
+      prior(lkj(2), class = cor, group = subject)
+    )
+ 
+ priorsnull <- c(
+   set_prior("normal(6, 0.6)", class = "Intercept"),
+   set_prior("normal(0, 0.1)", class = "sd"),
+   set_prior("normal(0, 0.5)", class = "sigma"),
+      prior(lkj(2), class = cor, group = subject)
+ )
+ 
+ m_full <- brm(rt ~ 1 +  int +
+                 (1 + int| subject) +
+                 (1 + int| item),
+               data = dat,
+               family = lognormal(),
+               prior = priors1,
+               warmup = 2000,
+               iter = 30000,
+               cores = 4,
+               save_pars = save_pars(all = TRUE)
+ )
+
+ m_null <- brm(rt ~ 1 +
+                 (1  + int | subject) +
+                 (1  +int | item),
+               data = dat,
+               family = lognormal(),
+               prior = priorsnull,
+               warmup = 2000,
+               iter = 30000,
+               cores = 4,
+               save_pars = save_pars(all = TRUE)
+ )
+ 
+bf10uninf<-bayes_factor(m_full,m_null)$bf
+bayes_factor(m_full,m_null)$bf
+
+save(bf10uninf,file="bfuninf.rda")
+@
+
+<<echo=FALSE>>=
+#load("bfuninf.rda")
+@
+
+The sensitivity of the Bayes factor to the prior can be illustrated by recomputing the Bayes factor under a range of priors. For example, assume a much wider prior for the $\beta$ parameter, e.g., Normal(0,1). This prior implies that, a priori, the effect can range from $-1345$ to $+1345$ ms. Such a prior is sometimes called an uninformative prior. Under such a prior, the Bayes factor is \Sexpr{round(bf10uninf,2)}. This Bayes factor implies that the null hypothesis is \Sexpr{round(1/bf10uninf,2)} times more likely than a model assuming that the effect exists! This is an invalid conclusion, and is entirely driven by the a priori assumption that the effect can be in the high hundreds of milliseconds. In general, an uninformative prior will unduly favor the null hypothesis, leading to---as in this case---misleading conclusion. 
+
+Despite the limitations of the Bayes factor, when the research question really does boil down to whether the effect is present or absent, the Bayes factor is a good way to evaluate the evidence from the data and is definitely superior to the p-value because it can, in principle, provide evidence for the null (assuming that the study is properly powered).  The main issue one must take care of with Bayes factors analyses is to carry out a sensitivity analysis. For more details on this point, see \cite{SchadEtAlBF,NicenboimEtAlBayes2019}. For an example of a sensitivity analysis in psycholinguistics, see \cite{NicenboimPreactivation2019}.
+
+In summary, a major advantage of adopting the Bayesian approach in experimental linguistics is that uncertainty quantification of the effect of interest--an approach advocated for by prominent psychologists like Meehl, becomes possible. There are of course many other advantages of adopting the Bayesian approach: for example, highly customized and complex models can be fit \citep{NicenboimEtAlBayes2019}.
+
+One final question worth addressing here is: how can one learn enough about Bayesian statistics to be able to use it sensibly in linguistics? Two textbooks accessible to linguists are the following: \cite{mcelreath2016statistical},\cite{kruschke2014doing}. We have also written a textbook, which is available for free online: \cite{NicenboimEtAlBayes2019}. I have also created a free online four-week course with video lectures on openhpi.de that covers the first four chapters of \cite{NicenboimEtAlBayes2019}.
+
+\section{Reproducible code and data}
+
+The code and data accompanying this article are available from https://osf.io/kgxpn/.
+
+\bibliography{bibcleaned.bib}
+\end{document}
+ 
