@@ -23,7 +23,10 @@ The directory structure is
       ├── mfull.Rda
       └── mnull.Rda
 
-      The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file.
+
+The main file is ExperimentalLinguisticsVasishth.Rnw. You will find the R code embedded inside this file. The compiled version of this document is the pdf file.
+      
+The data are in the file Nicenboim2018CogSci.Rda.      
 
 The rda files are precomputed data, created to save time.
 
